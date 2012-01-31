@@ -141,6 +141,7 @@ int main(int argc, char** argv) {
     int binHeights[numFounder*2*numFounderMutations];
     int carrierBurden[numHut];                               // track number of alleles per person, over a single iteration (from 1:64 founders)
     int numMutationsSurvive[numFounder*numFounderMutations];
+    float meannumMutationsSurvive = 0;
     	
 	int i, j;
 	for (i = 0; i < numHut; i++) {
@@ -173,7 +174,7 @@ int main(int argc, char** argv) {
 	struct genocount cohort_counts[num_cohorts];			// store genotype counts for each cohort, where each genocount is an element in the array cohort_counts
 
 	// printf("Initialize cohort_counts.\n");						// DEBUG	
-	for (i = 0; i < num_cohorts; i++) {
+	for (i = 0; i<num_cohorts; i++) {
 		init_genocount( &cohort_counts[i] );
 	}
 	
@@ -209,20 +210,19 @@ int main(int argc, char** argv) {
 		exit(1);
 	}
 	
-	fprintf(outfile_handle, "burden\tnsubj\tpropsubj\n");  			// DEBUG
-	
-	
-	
-	
 	// printf("set num_trials val.\n");				// DEBUG
 	int num_trials = 0;
 	for (num_trials=0; num_trials<num_desired; num_trials++) {
 		printf("Trial #%d\n", num_trials);
 		
-		// initialize total carrier burden
+		// initialize total carrier burden and count of surviving founder mutations
 		for (i = 0; i < numHut; i++) {
 			carrierBurden[i] = 0;
 		}
+	    for (i = 0; i < numFounder*numFounderMutations; i++) {
+			numMutationsSurvive[i] = 0;
+		}
+	
 	
     	int chosenFounderidx = 0;
     	for (chosenFounderidx=0; chosenFounderidx<numFounder; chosenFounderidx++) {			// iterate over all founders
@@ -258,6 +258,11 @@ int main(int argc, char** argv) {
     			// finished dropping alleles for this founder, save information
     			for (j = 0; j < numHut; j++) {
                     carrierBurden[j] += numAllele[j];
+                    
+                    // determine if founder mutation "survives" to desired cohort
+                    if (to_cohort[j] == &(cohort_counts[1])) {
+                        numMutationsSurvive[chosenFounderidx*(nmut+1)] += numAllele[j];
+                    }
     			}
 			}
 		}
@@ -268,6 +273,12 @@ int main(int argc, char** argv) {
                 binHeights[carrierBurden[i]]++;
             }
 		}
+		
+		for (i = 0; i < numFounder*numFounderMutations; i++) {
+            if (numMutationsSurvive[i] > 0) {
+                meannumMutationsSurvive++;
+            }
+    	}
 	}
 
 
@@ -276,9 +287,20 @@ int main(int argc, char** argv) {
     for (i = 0; i < numFounder*2*numFounderMutations; i++) {
         meanbinHeights[i] = (1.0*binHeights[i])/num_trials;
     }
+    
+    // calculate mean number of surviving founder mutations
+    meannumMutationsSurvive = meannumMutationsSurvive/num_trials;
 	
 	// print results to file							// DEBUG
 	// printf("print results to output\n");					// DEBUG
+	
+	fprintf(outfile_handle, "n mutations per founder = %i\n", numFounderMutations);	
+	fprintf(outfile_handle, "fitness of homozygotes = %i\n", selection);	
+    fprintf(outfile_handle, "mean surviving founder mutations = %f\n", meannumMutationsSurvive);			
+	fprintf(outfile_handle, "initial total founder mutations = %i\n\n", numFounder*numFounderMutations);	
+    
+    fprintf(outfile_handle, "burden\tnsubj\tpropsubj\n");  			// DEBUG
+	
 	for (i = 0; i < numFounder*2*numFounderMutations; i++) {
 	    if (meanbinHeights[i] > 0.00000001) {
             float propsubj = meanbinHeights[i]/totalsubjCounted; 
