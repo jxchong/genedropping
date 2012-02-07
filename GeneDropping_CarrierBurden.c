@@ -261,7 +261,7 @@ int main(int argc, char** argv) {
                     
                     // determine if founder mutation "survives" to desired cohort
                     if (to_cohort[j] == &(cohort_counts[1])) {
-                        numMutationsSurvive[chosenFounderidx*(nmut+1)] += numAllele[j];
+                        numMutationsSurvive[chosenFounderidx+numFounder*nmut] += numAllele[j];
                     }
     			}
 			}
