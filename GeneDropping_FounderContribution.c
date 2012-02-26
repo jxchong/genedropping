@@ -142,6 +142,8 @@ int main(int argc, char** argv) {
     int carrierBurden[numHut];                               // track number of alleles per person, over a single iteration (from 1:64 founders)
     int numMutationsSurvive[numFounder*numFounderMutations];
     float meannumMutationsSurvive = 0;
+    int nMutPerFounderSurvive[numFounder];                 // track number of mutations per founder surviving in current population
+    float meanPropSurvivingMutPerFounder[numFounder];           // expected proportion of surviving mutations inherited from a single founder
     	
 	int i, j;
 	for (i = 0; i < numHut; i++) {
@@ -222,7 +224,9 @@ int main(int argc, char** argv) {
 	    for (i = 0; i < numFounder*numFounderMutations; i++) {
 			numMutationsSurvive[i] = 0;
 		}
-	
+	    for (i = 0; i < numFounder; i++) {
+			nMutPerFounderSurvive[i] = 0;
+		}
 	
     	int chosenFounderidx = 0;
     	for (chosenFounderidx=0; chosenFounderidx<numFounder; chosenFounderidx++) {			// iterate over all founders
@@ -253,21 +257,38 @@ int main(int argc, char** argv) {
                     }
     			}
 			}
-		}
-		
+		}        
 		// finish of a single iteration over all founders, count number of subjects falling into a given carrier burden bin
 		for (i = 0; i < numHut; i++) {
 		    if (to_cohort[i] == &(cohort_counts[1])) {
                 binHeights[carrierBurden[i]]++;
             }
 		}
-		
-		for (i = 0; i < numFounder*numFounderMutations; i++) {
-            if (numMutationsSurvive[i] > 0) {
-                meannumMutationsSurvive++;
-            }
+		    
+        int nmut = 0;        
+        // for (i = 0; i < numFounder*numFounderMutations; i++) {        
+        for (nmut=0; nmut<numFounderMutations; nmut++) {    
+        	for (chosenFounderidx=0; chosenFounderidx<numFounder; chosenFounderidx++) {
+                if (numMutationsSurvive[chosenFounderidx+numFounder*nmut] > 0) {
+                    meannumMutationsSurvive++;
+                    nMutPerFounderSurvive[chosenFounderidx]++;
+                }
+        	}
     	}
-	}
+    	
+    	int totMutSurvive = 0;
+    	for (chosenFounderidx=0; chosenFounderidx<numFounder; chosenFounderidx++) {
+            totMutSurvive += nMutPerFounderSurvive[chosenFounderidx];
+        }
+        
+        for (chosenFounderidx=0; chosenFounderidx<numFounder; chosenFounderidx++) {
+           meanPropSurvivingMutPerFounder[chosenFounderidx] += (1.0*nMutPerFounderSurvive[chosenFounderidx])/totMutSurvive;
+        }
+        
+    	
+	}  // finish all iterations/trials
+
+
 
 
 	// calculate mean (over all iterations bin height)
@@ -278,6 +299,12 @@ int main(int argc, char** argv) {
     
     // calculate mean number of surviving founder mutations
     meannumMutationsSurvive = meannumMutationsSurvive/num_trials;
+    
+    // calculate mean proportion of surviving mutations attributable to each founder
+    int chosenFounderidx = 0;
+    for (chosenFounderidx=0; chosenFounderidx<numFounder; chosenFounderidx++) {
+         meanPropSurvivingMutPerFounder[chosenFounderidx] = meanPropSurvivingMutPerFounder[chosenFounderidx]/num_trials;
+     }
 	
 	// print results to file							// DEBUG
 	// printf("print results to output\n");					// DEBUG
@@ -285,17 +312,24 @@ int main(int argc, char** argv) {
 	fprintf(outfile_handle, "n mutations per founder = %i\n", numFounderMutations);	
 	fprintf(outfile_handle, "fitness of homozygotes = %i\n", selection);	
     fprintf(outfile_handle, "mean surviving founder mutations = %f\n", meannumMutationsSurvive);			
-	fprintf(outfile_handle, "initial total founder mutations = %i\n\n", numFounder*numFounderMutations);	
+	fprintf(outfile_handle, "initial total founder mutations = %i\n\n", numFounder*numFounderMutations);
+	
+    fprintf(outfile_handle, "proportion of surviving mutations from founder x\n");
     
-    fprintf(outfile_handle, "burden\tnsubj\tpropsubj\n");  			// DEBUG
+    for (chosenFounderidx=0; chosenFounderidx<numFounder; chosenFounderidx++) {
+        fprintf(outfile_handle, "%i\t%f\n", findivs[chosenFounderidx], meanPropSurvivingMutPerFounder[chosenFounderidx]);	
+    }
 	
-	for (i = 0; i < numFounder*2*numFounderMutations; i++) {
-	    if (meanbinHeights[i] > 0.00000001) {
-            float propsubj = meanbinHeights[i]/totalsubjCounted; 
-	        fprintf(outfile_handle, "%d\t%f\t%f\n", i, meanbinHeights[i], propsubj);
-	    }
-    }	
 	
+    //     fprintf(outfile_handle, "burden\tnsubj\tpropsubj\n");            // DEBUG
+    // 
+    // for (i = 0; i < numFounder*2*numFounderMutations; i++) {
+    //     if (meanbinHeights[i] > 0.00000001) {
+    //             float propsubj = meanbinHeights[i]/totalsubjCounted; 
+    //         fprintf(outfile_handle, "%d\t%f\t%f\n", i, meanbinHeights[i], propsubj);
+    //     }
+    //     }    
+    // 
 	fclose(outfile_handle);	
 	exit(0);
 }
